@@ -10,12 +10,12 @@ function activate(context) {
   init();
 
   var commands = [
-    vscode.commands.registerCommand('extension.markdown-pdf.settings', async function () { await markdownPdf('settings'); }),
-    vscode.commands.registerCommand('extension.markdown-pdf.pdf', async function () { await markdownPdf('pdf'); }),
-    vscode.commands.registerCommand('extension.markdown-pdf.html', async function () { await markdownPdf('html'); }),
-    vscode.commands.registerCommand('extension.markdown-pdf.png', async function () { await markdownPdf('png'); }),
-    vscode.commands.registerCommand('extension.markdown-pdf.jpeg', async function () { await markdownPdf('jpeg'); }),
-    vscode.commands.registerCommand('extension.markdown-pdf.all', async function () { await markdownPdf('all'); })
+    vscode.commands.registerCommand('extension.markdown-pdf.settings', async function ([, file_uri] = []) { await markdownPdf('settings',file_uri); }),
+    vscode.commands.registerCommand('extension.markdown-pdf.pdf', async function ([, file_uri] = []) { await markdownPdf('pdf',file_uri); }),
+    vscode.commands.registerCommand('extension.markdown-pdf.html', async function ([, file_uri] = []) { await markdownPdf('html',file_uri); }),
+    vscode.commands.registerCommand('extension.markdown-pdf.png', async function ([, file_uri] = []) { await markdownPdf('png',file_uri); }),
+    vscode.commands.registerCommand('extension.markdown-pdf.jpeg', async function ([, file_uri] = []) { await markdownPdf('jpeg',file_uri); }),
+    vscode.commands.registerCommand('extension.markdown-pdf.all', async function ([, file_uri] = []) { await markdownPdf('all',file_uri); })
   ];
   commands.forEach(function (command) {
     context.subscriptions.push(command);
@@ -34,7 +34,7 @@ function deactivate() {
 }
 exports.deactivate = deactivate;
 
-async function markdownPdf(option_type) {
+async function markdownPdf(option_type, file_uri = null) {
 
   try {
 
@@ -44,19 +44,25 @@ async function markdownPdf(option_type) {
       vscode.window.showWarningMessage('No active Editor!');
       return;
     }
+    
+    // set active document
+    var document = editor.document;
+    if(file_uri){
+      document = await vscode.workspace.openTextDocument(file_uri);
+    }
 
     // check markdown mode
-    var mode = editor.document.languageId;
+    var mode = document.languageId;
     if (mode != 'markdown') {
       vscode.window.showWarningMessage('It is not a markdown mode!');
       return;
     }
 
-    var uri = editor.document.uri;
+    var uri = document.uri;
     var mdfilename = uri.fsPath;
     var ext = path.extname(mdfilename);
     if (!isExistsPath(mdfilename)) {
-      if (editor.document.isUntitled) {
+      if (document.isUntitled) {
         vscode.window.showWarningMessage('Please save the file!');
         return;
       }
@@ -89,7 +95,7 @@ async function markdownPdf(option_type) {
         var type = types[i];
         if (types_format.indexOf(type) >= 0) {
           filename = mdfilename.replace(ext, '.' + type);
-          var text = editor.document.getText();
+          var text = document.getText();
           var content = convertMarkdownToHtml(mdfilename, type, text);
           var html = makeHtml(content, uri);
           await exportPdf(html, filename, type, uri);
